@@ -1,0 +1,25 @@
+---
+# IQN of the target.
+iscsi_target_iqn: "iqn.2025-03.com.example:storage"
+
+# IPv4 addresses the target listens on. Every address must already be configured on
+# the target host; use one address per storage network for multipathing.
+iscsi_target_portals:
+  - "10.0.10.11"
+iscsi_target_port: 3260
+
+# Block devices exported as LUNs, in LUN order. The wwn (a UUID) fixes the LUN's
+# serial number, so the WWID initiators see ("36001405" + the first 25 hex digits
+# of the wwn without dashes) stays the same when the configuration is re-applied.
+iscsi_target_luns: []
+#  - name: lun0
+#    device: /dev/sdb
+#    wwn: "c0ffee00-1234-4abc-8def-0123456789ab"
+
+# IQNs of the initiators that may log in (one ACL each, mapped to every LUN).
+iscsi_target_initiators: []
+
+# One-way CHAP for every ACL. Keep the credentials in Ansible Vault.
+iscsi_target_chap_enabled: false
+iscsi_target_chap_username: ""
+iscsi_target_chap_password: ""

@@ -1,0 +1,72 @@
+---
+# Section 3: install the packages and start the services.
+- name: Install open-iscsi and multipath-tools
+  ansible.builtin.apt:
+    name:
+      - open-iscsi
+      - multipath-tools
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Enable and start iscsid and multipathd
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - iscsid
+    - multipathd
+
+# Section 4: discover the target on both portals and log in to both paths.
+# "-o new" only adds missing node records. A plain re-discovery rebuilds existing
+# records from iscsid.conf and resets node.startup to manual.
+- name: Discover the target on each portal
+  ansible.builtin.command:
+    cmd: "iscsiadm -m discovery -t st -p {{ item }} -o new"
+  loop: "{{ iscsi_target_ips }}"
+  changed_when: false
+
+- name: Check active iSCSI sessions
+  ansible.builtin.command:
+    cmd: iscsiadm -m session
+  register: iscsi_sessions
+  changed_when: false
+  failed_when: iscsi_sessions.rc not in [0, 21]  # 21 = no active sessions
+
+- name: Log in to both paths
+  ansible.builtin.command:
+    cmd: "iscsiadm -m node -T {{ iscsi_target_name }} -p {{ item }} --login"
+  loop: "{{ iscsi_target_ips }}"
+  when: (item ~ ':' ~ iscsi_target_port) not in iscsi_sessions.stdout
+  changed_when: true  # only runs for portals without a session
+
+- name: Read node.startup of each path
+  ansible.builtin.command:
+    cmd: "iscsiadm -m node -T {{ iscsi_target_name }} -p {{ item }} -o show"
+  loop: "{{ iscsi_target_ips }}"
+  register: iscsi_node_records
+  changed_when: false
+  no_log: true  # node records can contain CHAP secrets
+
+- name: Set the login to persist across reboots
+  ansible.builtin.command:
+    cmd: "iscsiadm -m node -T {{ iscsi_target_name }} -p {{ item.item }} --op=update --name=node.startup --value=automatic"
+  loop: "{{ iscsi_node_records.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stdout is not search('^node.startup = automatic$', multiline=True)
+  changed_when: true
+
+# Section 5: multipath configuration.
+- name: Configure /etc/multipath.conf
+  ansible.builtin.template:
+    src: multipath.conf.j2
+    dest: /etc/multipath.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart multipathd
+
+- name: Restart multipathd now when its configuration changed
+  ansible.builtin.meta: flush_handlers

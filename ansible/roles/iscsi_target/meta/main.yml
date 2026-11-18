@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  role_name: iscsi_target
+  namespace: blog
+  author: Patrick de Ruiter
+  description: Linux LIO iSCSI target (targetcli-fb) with block-backed LUNs, multiple portals and optional CHAP
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+  galaxy_tags:
+    - iscsi
+    - storage
+    - lio
+dependencies: []

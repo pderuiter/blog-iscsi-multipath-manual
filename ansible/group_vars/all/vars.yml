@@ -1,0 +1,19 @@
+---
+# Initiator side (role iscsi_multipath_initiator).
+iscsi_target_ips:
+  - "10.0.10.11"
+  - "10.0.20.11"
+iscsi_target_name: "iqn.2025-03.com.example:storage"
+# The target below gives the LUN a fixed serial, so its WWID is known in advance:
+# "36001405" + the first 25 hex digits of the wwn without dashes.
+iscsi_wwid: "{{ '36001405' ~ (iscsi_target_luns[0].wwn | replace('-', ''))[:25] }}"
+
+# Target side (role iscsi_target). The post uses no CHAP, so neither does this setup.
+iscsi_target_iqn: "{{ iscsi_target_name }}"
+iscsi_target_portals: "{{ iscsi_target_ips }}"
+iscsi_target_luns:
+  - name: lun0
+    device: /dev/sdb  # the second disk of the target VM (scsi1)
+    wwn: "c0ffee00-1234-4abc-8def-0123456789ab"
+iscsi_target_initiators: "{{ groups['iscsi_initiators'] | map('extract', hostvars, 'iscsi_initiator_iqn') | list }}"
+iscsi_target_chap_enabled: false

@@ -1,0 +1,10 @@
+---
+# The two portals of the target (section 2.1 of the post: IP1 and IP2).
+iscsi_target_ips:
+  - "10.0.10.11"
+  - "10.0.20.11"
+iscsi_target_name: "iqn.2025-03.com.example:storage"
+iscsi_target_port: 3260
+
+# WWID of the LUN (sudo multipath -ll, or /lib/udev/scsi_id -g -u -d /dev/sdX).
+iscsi_wwid: ""

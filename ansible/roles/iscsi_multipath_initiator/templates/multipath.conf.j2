@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+defaults {
+    user_friendly_names yes
+}
+
+blacklist {
+    wwid ".*"
+}
+
+blacklist_exceptions {
+    wwid "{{ iscsi_wwid }}"
+}
+
+multipaths {
+    multipath {
+        wwid "{{ iscsi_wwid }}"
+        alias mpatha
+        path_grouping_policy "multibus"
+        path_selector "round-robin 0"
+        failback immediate
+        rr_weight priorities
+        no_path_retry 5
+    }
+}

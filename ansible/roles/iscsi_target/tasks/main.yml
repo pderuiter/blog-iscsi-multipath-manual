@@ -1,0 +1,68 @@
+---
+- name: Check the platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == 'Debian'
+    fail_msg: "This role supports Debian/Ubuntu (targetcli-fb) only."
+    quiet: true
+
+- name: Check the variables
+  ansible.builtin.assert:
+    that:
+      - iscsi_target_luns | length > 0
+      - iscsi_target_portals | length > 0
+      - not iscsi_target_chap_enabled or (iscsi_target_chap_username | length > 0 and iscsi_target_chap_password | length >= 12)
+    fail_msg: "Define iscsi_target_luns and iscsi_target_portals; with CHAP enabled set a username and a password of at least 12 characters."
+    quiet: true
+
+- name: Check that the LUN backing devices exist and are not mounted
+  ansible.builtin.command:
+    cmd: "lsblk --noheadings --output MOUNTPOINTS {{ item.device }}"
+  loop: "{{ iscsi_target_luns }}"
+  loop_control:
+    label: "{{ item.device }}"
+  register: iscsi_target_lsblk
+  changed_when: false
+  failed_when: iscsi_target_lsblk.rc != 0 or iscsi_target_lsblk.stdout | trim | length > 0
+
+- name: Install targetcli-fb
+  ansible.builtin.apt:
+    name: targetcli-fb
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the configuration directory
+  ansible.builtin.file:
+    path: /etc/rtslib-fb-target
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Deploy the LIO target configuration
+  ansible.builtin.template:
+    src: saveconfig.json.j2
+    dest: /etc/rtslib-fb-target/saveconfig.json
+    owner: root
+    group: root
+    mode: "0600"
+    validate: python3 -m json.tool %s
+  no_log: "{{ iscsi_target_chap_enabled }}"
+  notify: Restore LIO target configuration
+
+- name: Enable the LIO restore service at boot
+  ansible.builtin.systemd_service:
+    name: rtslib-fb-targetctl
+    enabled: true
+    state: started
+
+- name: Apply a changed configuration now
+  ansible.builtin.meta: flush_handlers
+
+- name: Check that every portal accepts connections
+  ansible.builtin.wait_for:
+    host: "{{ item }}"
+    port: "{{ iscsi_target_port }}"
+    timeout: 15
+  loop: "{{ iscsi_target_portals }}"

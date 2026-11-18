@@ -1,0 +1,69 @@
+{
+  "fabric_modules": [],
+  "storage_objects": [
+{% for lun in iscsi_target_luns %}
+    {
+      "dev": {{ lun.device | to_json }},
+      "name": {{ lun.name | to_json }},
+      "plugin": "block",
+      "readonly": false,
+      "write_back": false,
+      "wwn": {{ lun.wwn | to_json }}
+    }{{ "" if loop.last else "," }}
+{% endfor %}
+  ],
+  "targets": [
+    {
+      "fabric": "iscsi",
+      "wwn": {{ iscsi_target_iqn | to_json }},
+      "tpgs": [
+        {
+          "tag": 1,
+          "enable": true,
+          "attributes": {
+            "authentication": {{ 1 if iscsi_target_chap_enabled else 0 }},
+            "generate_node_acls": 0
+          },
+          "luns": [
+{% for lun in iscsi_target_luns %}
+            {
+              "index": {{ loop.index0 }},
+              "storage_object": "/backstores/block/{{ lun.name }}"
+            }{{ "" if loop.last else "," }}
+{% endfor %}
+          ],
+          "node_acls": [
+{% for initiator in iscsi_target_initiators %}
+            {
+              "node_wwn": {{ initiator | to_json }},
+{% if iscsi_target_chap_enabled %}
+              "chap_userid": {{ iscsi_target_chap_username | to_json }},
+              "chap_password": {{ iscsi_target_chap_password | to_json }},
+{% endif %}
+              "mapped_luns": [
+{% for lun in iscsi_target_luns %}
+                {
+                  "index": {{ loop.index0 }},
+                  "tpg_lun": {{ loop.index0 }},
+                  "write_protect": false
+                }{{ "" if loop.last else "," }}
+{% endfor %}
+              ]
+            }{{ "" if loop.last else "," }}
+{% endfor %}
+          ],
+          "portals": [
+{% for portal in iscsi_target_portals %}
+            {
+              "ip_address": {{ portal | to_json }},
+              "port": {{ iscsi_target_port }},
+              "iser": false,
+              "offload": false
+            }{{ "" if loop.last else "," }}
+{% endfor %}
+          ]
+        }
+      ]
+    }
+  ]
+}

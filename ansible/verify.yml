@@ -1,0 +1,30 @@
+---
+# The checks from section 6 of the blog post, as assertions. Read-only.
+- name: Verify iSCSI multipathing
+  hosts: iscsi_initiators
+  become: true
+  tasks:
+    - name: Check active iSCSI sessions
+      ansible.builtin.command:
+        cmd: iscsiadm -m session
+      register: verify_sessions
+      changed_when: false
+
+    - name: Check multipath devices
+      ansible.builtin.command:
+        cmd: multipath -ll mpatha
+      register: verify_multipath
+      changed_when: false
+
+    - name: Assert one session per portal and two active paths in mpatha
+      ansible.builtin.assert:
+        that:
+          - iscsi_target_ips | select('in', verify_sessions.stdout) | list | length == iscsi_target_ips | length
+          - verify_multipath.stdout is search('^mpatha \(' ~ iscsi_wwid ~ '\)', multiline=True)
+          - verify_multipath.stdout is search("policy='round-robin 0'")
+          - verify_multipath.stdout | regex_findall('active ready running') | length == iscsi_target_ips | length
+        quiet: true
+
+    - name: Show the multipath map
+      ansible.builtin.debug:
+        var: verify_multipath.stdout_lines

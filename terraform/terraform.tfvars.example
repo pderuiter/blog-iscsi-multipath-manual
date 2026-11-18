@@ -1,0 +1,23 @@
+# Copy to terraform.tfvars and adjust. Never commit real values.
+proxmox_endpoint  = "https://pve.example.com:8006/"
+proxmox_api_token = "terraform@pve!blog=00000000-0000-0000-0000-000000000000"
+node_name         = "pve"
+datastore_id      = "local-lvm"
+gateway           = "10.0.10.1"
+dns_servers       = ["10.0.10.1"]
+ssh_public_key    = "ssh-ed25519 AAAA... you@example.com"
+
+# Two storage networks: every VM gets one NIC on each (eth0, eth1).
+bridges = ["vmbr0", "vmbr1"]
+
+vms = {
+  storage01 = {
+    addresses  = ["10.0.10.11/24", "10.0.20.11/24"]
+    data_disks = [20] # /dev/sdb, exported as LUN 0
+    groups     = ["iscsi_targets"]
+  }
+  node01 = {
+    addresses = ["10.0.10.21/24", "10.0.20.21/24"]
+    groups    = ["iscsi_initiators"]
+  }
+}

@@ -1,0 +1,10 @@
+---
+profile: production
+exclude_paths:
+  - .gitlab-ci.yml
+  - terraform/
+  - ansible/collections/
+skip_list:
+  # The role variables and register names are kept identical to the ones in the
+  # blog post, so readers can map the code to the article one to one.
+  - var-naming[no-role-prefix]

@@ -1,0 +1,32 @@
+---
+- name: Read the initiator names
+  hosts: iscsi_initiators
+  become: true
+  tasks:
+    - name: Install open-iscsi
+      ansible.builtin.apt:
+        name: open-iscsi
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Read /etc/iscsi/initiatorname.iscsi
+      ansible.builtin.slurp:
+        src: /etc/iscsi/initiatorname.iscsi
+      register: initiatorname_file
+
+    - name: Remember the initiator IQN for the target ACL
+      ansible.builtin.set_fact:
+        iscsi_initiator_iqn: "{{ initiatorname_file.content | b64decode | regex_search('^InitiatorName=(\\S+)', '\\1', multiline=True) | first }}"
+
+- name: Configure iSCSI target
+  hosts: iscsi_targets
+  become: true
+  roles:
+    - iscsi_target
+
+- name: Configure the initiator with two paths and multipathing
+  hosts: iscsi_initiators
+  become: true
+  roles:
+    - iscsi_multipath_initiator
